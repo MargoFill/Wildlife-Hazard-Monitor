@@ -1,8 +1,10 @@
 # Environmental Monitoring to Prevent Road Hazards Project
 
-## Project Overview
+## Problem Statement
+Nowadays, hazards on the roads caused by wild animals is an important problem. A lot of car crashes happen especially at nighttime and at the narrow roads. Even with existing technologies it is not possible to fully exclude the danger. Thousands of people suffer from this problem every year. Statistically, 122 cases of these accidents are leading to personal injuries and roughly 3 fatalities annually. These facts highlight the necessity of detecting wild animals near roads and informing road users about possible threats nearby.
 
-Hazards on the roads caused by wild animals is a very prevalent problem. A lot of car crashes happen at nighttime and on the narrow roads. Even with existing technologies it is not possible to fully exclude the danger. The users could include the department of traffic, department of natural resources, drivers, and scientists. This should improve safety and provide animal data for scientists.
+## Project Goal
+Create a weatherproof device with thermal camera, distance sensor (PIR) and LoRa transmitter for communication with LED Possible additions include dashboard for displaying alerts. The MVP would be an energy efficient device that can correctly identify hazardous animals and transmit alerts via LoRa.
 
 ## What should the system do?
 - Collect sensor data
