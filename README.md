@@ -22,3 +22,17 @@ Hazards on the roads caused by wild animals is a very prevalent problem. A lot o
 - EKMC1603111 PIR sensor
 - CR123A x 6 batteries
 - Real Time Clock
+
+## Team members
+Niklas Etling– 
+  Sensor integration
+  Energy/software optimization
+  General Embedded development
+Margarita Filenko – 
+  AI development 
+  Integration
+  General development
+Arsenii Marchenko– 
+  LoRa Communication 
+  Data logging
+  General Embedded development
