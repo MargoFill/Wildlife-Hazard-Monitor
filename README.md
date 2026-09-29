@@ -20,10 +20,9 @@ Create a weatherproof device with thermal camera, distance sensor (PIR) and LoRa
 ##  Technologies Used
 - ESP32 S3 (Receiver and Transmitter)
 - MLX96040 THERMAL SENSOR MODULE
-- Lora RYLR 998 x2
-- EKMC1603111 PIR sensor
+- Lora RYLR 890 x2
+- SKU 101020060 PIR sensor
 - CR123A x 6 batteries
-- Real Time Clock
 
 ## Team members
 * Niklas Etling– 
