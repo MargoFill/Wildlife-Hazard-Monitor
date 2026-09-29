@@ -25,14 +25,14 @@ Hazards on the roads caused by wild animals is a very prevalent problem. A lot o
 
 ## Team members
 * Niklas Etling– 
-    Sensor integration
-    Energy/software optimization
-    General Embedded development
+    - Sensor integration
+    - Energy/software optimization
+    - General Embedded development
 * Margarita Filenko – 
-    AI development 
-    Integration
-    General development
+    - AI development 
+    - Integration
+    - General development
 * Arsenii Marchenko– 
-    LoRa Communication 
-    Data logging
-    General Embedded development
+    - LoRa Communication 
+    - Data logging
+    - General Embedded development
