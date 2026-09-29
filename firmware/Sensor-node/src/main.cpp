@@ -27,11 +27,16 @@ void setup() {
 
 void loop() {
   
-  if (isPeopleDetected())
+  if (isPeopleDetected()) //There is a problem that the loop only has time to run as long as isPeopleDetected is high
   {
-    digitalWrite(LED_PIN, HIGH);   // on
-    Serial.println("Detection!!!");
-    delay(10);                    // <-- wait half a second
+    Serial.println("Detection Sequence commencing!");
+    for (int i=0;i<3;){
+      digitalWrite(LED_PIN, HIGH);   // on
+      delay(200);                    // <-- wait 1/4 of a second
+      digitalWrite(LED_PIN, LOW);    // off  
+      i++;
+    }
+    Serial.println("Sequence completed"); 
   }
   else
   {
