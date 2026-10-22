@@ -22,22 +22,8 @@ The model is trained directly on low-resolution thermal temperature matrices ($2
 
 ### How the Model Works (ML Pipeline)
 
-Input Matrix (24x32x1)
-│
-▼
-Conv2D (8 filters, 3x3) + ReLU + MaxPool2D (2x2)  ──>  Extracts thermal intensity edges
-│
-▼
-Conv2D (16 filters, 3x3) + ReLU + MaxPool2D (2x2) ──>  Isolates spatial heat cores & blobs
-│
-▼
-Flatten (16x6x8 = 768 elements)
-│
-▼
-Dense Layer (16 units) + ReLU                     ──>  Evaluates shape & temperature boundaries
-│
-▼
-Dense Output (2 units)                            ──>  Logits for [Forest, Animal]
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/806acf29-a2c9-4612-9804-b794d63be6b0" />
+
 
 
 1. **Feature Extraction (Convolutional Layers):** 
