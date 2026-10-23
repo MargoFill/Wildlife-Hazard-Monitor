@@ -1,6 +1,6 @@
 ## Model Architecture & Machine Learning Rationale
 
-### Overview: TinyThermalCNN
+### Overview: TinyThermalCNN -> MooseDetector3000
 
 Instead of relying on heavy pre-trained vision backbones (such as ResNet or MobileNet), this project utilizes a custom-designed **Tiny 2D Convolutional Neural Network (MooseDetector3000)** built with PyTorch and optimized for embedded inference on the ESP32-S3.
 
