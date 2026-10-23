@@ -1,1 +1,1 @@
-no needed for the project, ib case of using checke the configuration for platformIO
+no needed for the project, in case of using check the configuration for platformIO
