@@ -4,10 +4,12 @@
 #include <HardwareSerial.h>
 #include <time.h>
 #include <esp_sleep.h>
+#include "animal_prediction.h"
 
 #include "thermal_model.h"
 
 constexpr gpio_num_t PIR_PIN = GPIO_NUM_5;
+constexpr int LED_PIN = 40;
 constexpr int I2C_SDA_PIN = 8;
 constexpr int I2C_SCL_PIN = 9;
 constexpr int LORA_RX_PIN = 3;
@@ -22,7 +24,7 @@ Adafruit_MLX90640 mlx;
 HardwareSerial LoRaSerial(1);
 float frame[32 * 24];
 
-bool predictMoose(const float *rawFrame) {
+/*bool predictMoose(const float *rawFrame) {
   static float input[24][32];
   for (int row = 0; row < 24; ++row) {
     for (int col = 0; col < 32; ++col) input[row][col] = (rawFrame[row * 32 + col] - 18.0f) / 10.0f;
@@ -81,7 +83,7 @@ bool predictMoose(const float *rawFrame) {
     logits[1] += hidden[neuron] * fc2_weight[16 + neuron];
   }
   return logits[1] > logits[0];
-}
+}*/
 
 bool initializeThermalCamera() {
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
@@ -106,7 +108,7 @@ bool detectMoose() {
       continue;
     }
     ++validFrames;
-    if (predictMoose(frame)) ++votes;
+    if (predict_animal(frame)) ++votes; //variable prdictMoose changed
     delay(30);
   }
   Serial.printf("[MODEL] %d/%d Moose votes\n", votes, validFrames);
@@ -127,7 +129,7 @@ void initializeLoRa() {
   LoRaSerial.println("AT+CRFOP=14");
   delay(300);
 }
-//TODO sensor numbering logic 
+
 void sendMooseFinding() {
   initializeLoRa();
   const String payload = String("WILDLIFE,moose,node=sensor-1,ts=") + timestamp();
@@ -150,21 +152,25 @@ void sendMooseFinding() {
 void setup() {
   Serial.begin(115200);
   delay(300);
-
+  pinMode(LED_PIN, OUTPUT);
   pinMode(PIR_PIN, INPUT);
 
   const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
   if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("[WAKE] PIR motion detected");
+    digitalWrite(LED_PIN, HIGH);
     const bool mooseDetected = detectMoose();
+    digitalWrite(LED_PIN, LOW);
     if (mooseDetected) sendMooseFinding();
     else Serial.println("[MODEL] No Moose finding");
   } else {
     Serial.println("[BOOT] PIR calibration");
     const unsigned long start = millis();
     while (millis() - start < PIR_CALIBRATION_MS) {
+      digitalWrite(LED_PIN, ((millis() / 250) % 2) == 0);
       delay(20);
     }
+    digitalWrite(LED_PIN, LOW);
   }
   enterDeepSleep();
 }
