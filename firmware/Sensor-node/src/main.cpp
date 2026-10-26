@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_MLX90640.h>
 #include <HardwareSerial.h>
@@ -9,13 +8,16 @@
 #include "thermal_model.h"
 
 constexpr gpio_num_t PIR_PIN = GPIO_NUM_5;
-constexpr int LED_PIN = 40;
+// constexpr int LED_PIN = 40;
 constexpr int I2C_SDA_PIN = 8;
 constexpr int I2C_SCL_PIN = 9;
-constexpr int LORA_RX_PIN = 3;
-constexpr int LORA_TX_PIN = 2;
-constexpr int LORA_BAUD = 9600;
+constexpr gpio_num_t LORA_RX_PIN = GPIO_NUM_17;
+constexpr int LORA_TX_PIN = 16;
+
+constexpr int LORA_BAUD = 115200;
+constexpr int LORA_NETWORK_ID = 11;
 constexpr uint8_t LORA_DESTINATION = 1;
+constexpr uint8_t LORA_SELF_ADDRESS = 5;
 constexpr int FRAME_COUNT = 8;
 constexpr int REQUIRED_VOTES = 5;
 constexpr unsigned long PIR_CALIBRATION_MS = 10000;
@@ -124,6 +126,8 @@ String timestamp() {
 void initializeLoRa() {
   LoRaSerial.begin(LORA_BAUD, SERIAL_8N1, LORA_RX_PIN, LORA_TX_PIN);
   delay(100);
+  LoRaSerial.println("AT+ADDRESS=" + String(LORA_SELF_ADDRESS));
+  LoRaSerial.println("AT+NETWORKID=" + String(LORA_NETWORK_ID));
   LoRaSerial.println("AT+BAND=868500000");
   LoRaSerial.println("AT+PARAMETER=10,7,2,6");
   LoRaSerial.println("AT+CRFOP=14");
@@ -136,7 +140,15 @@ void sendMooseFinding() {
   const String command = String("AT+SEND=") + String(LORA_DESTINATION) + "," + String(payload.length()) + "," + payload;
   LoRaSerial.println(command);
   LoRaSerial.flush();
+
+
+  unsigned long start = millis();
+  String resp;
+  while (millis() - start < 1000) {
+    while (LoRaSerial.available()) resp += char(LoRaSerial.read());
+  }
   Serial.println("[LORA] " + payload);
+  Serial.printf("[LORA] SEND resp: %s\n", resp.c_str());
 }
 
 [[noreturn]] void enterDeepSleep() {
@@ -152,25 +164,25 @@ void sendMooseFinding() {
 void setup() {
   Serial.begin(115200);
   delay(300);
-  pinMode(LED_PIN, OUTPUT);
+  // pinMode(LED_PIN, OUTPUT);
   pinMode(PIR_PIN, INPUT);
 
   const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
   if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("[WAKE] PIR motion detected");
-    digitalWrite(LED_PIN, HIGH);
+    // digitalWrite(LED_PIN, HIGH);
     const bool mooseDetected = detectMoose();
-    digitalWrite(LED_PIN, LOW);
+    // digitalWrite(LED_PIN, LOW);
     if (mooseDetected) sendMooseFinding();
     else Serial.println("[MODEL] No Moose finding");
   } else {
     Serial.println("[BOOT] PIR calibration");
     const unsigned long start = millis();
     while (millis() - start < PIR_CALIBRATION_MS) {
-      digitalWrite(LED_PIN, ((millis() / 250) % 2) == 0);
+      // digitalWrite(LED_PIN, ((millis() / 250) % 2) == 0);
       delay(20);
     }
-    digitalWrite(LED_PIN, LOW);
+    // digitalWrite(LED_PIN, LOW);
   }
   enterDeepSleep();
 }
