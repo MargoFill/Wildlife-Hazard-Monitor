@@ -8,7 +8,7 @@
 #include "thermal_model.h"
 
 constexpr gpio_num_t PIR_PIN = GPIO_NUM_5;
-constexpr int LED_PIN = 40;
+constexpr int LED_PIN = 38;
 constexpr int I2C_SDA_PIN = 8;
 constexpr int I2C_SCL_PIN = 9;
 constexpr int LORA_RX_PIN = 3;
@@ -128,7 +128,7 @@ void initializeLoRa() {
   LoRaSerial.println("AT+CRFOP=14");
   delay(300);
 }
-
+//TODO sensor numbering logic 
 void sendMooseFinding() {
   initializeLoRa();
   const String payload = String("WILDLIFE,moose,node=sensor-1,ts=") + timestamp();

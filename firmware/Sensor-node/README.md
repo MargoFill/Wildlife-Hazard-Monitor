@@ -1,5 +1,7 @@
 # Combined sensor node
 
+The project uses the board's default flash mode and does not force PSRAM. Do not force `opi`/`opi_opi` or define `BOARD_HAS_PSRAM` unless the exact ESP32-S3 module has those features configured; otherwise the bootloader can report flash or PSRAM errors before the application starts.
+
 The ESP32-S3 remains in deep sleep until the PIR output goes HIGH. After wake it captures eight MLX90640 frames, runs the embedded model, and requires five Moose votes before transmitting a LoRa alert. It waits for the PIR output to return LOW before arming the next wake event.
 
 ## Wiring
