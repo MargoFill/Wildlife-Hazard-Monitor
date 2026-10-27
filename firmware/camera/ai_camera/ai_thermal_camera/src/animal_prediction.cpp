@@ -3,14 +3,15 @@
 
 bool predict_animal(float* raw_frame) {
     // 1.  Frame normalization
-    static float input[1][24][32];
+    static float input[1][24][32]; //initialize frame array
     for (int r = 0; r < 24; r++) {
-        for (int c = 0; c < 32; c++) {
-            input[0][r][c] = (raw_frame[r * 32 + c] - 18.0f) / 10.0f;
+        for (int c = 0; c < 32; c++) { //iterate through frame matrix
+            input[0][r][c] = (raw_frame[r * 32 + c] - 18.0f) / 10.0f; //This line here hardcodes temperature may need to find some way around this for robustness
         }
     }
 
     // Conv1 layer (1 -> 8 channels, 3x3) + ReLU + MaxPool (24x32 -> 12x16)
+    // each channel is a 'frame' from the camera
     static float conv1_out[8][12][16] = {0};
     for (int f = 0; f < 8; f++) {
         for (int r = 0; r < 12; r++) {
@@ -18,6 +19,7 @@ bool predict_animal(float* raw_frame) {
                 float sum = conv1_bias[f];
                 for (int kr = 0; kr < 3; kr++) {
                     for (int kc = 0; kc < 3; kc++) {
+                        //resolution cut in half
                         int in_r = r * 2 + kr - 1;
                         int in_c = c * 2 + kc - 1;
                         if (in_r >= 0 && in_r < 24 && in_c >= 0 && in_c < 32) {
@@ -25,7 +27,9 @@ bool predict_animal(float* raw_frame) {
                         }
                     }
                 }
-                conv1_out[f][r][c] = sum > 0.0f ? sum : 0.0f; // ReLU
+                conv1_out[f][r][c] = sum > 0.0f ? sum : 0.0f; // ReLU This removes negative numbers..
+                // with hard coded temp on line 8, these negative numbers could be quite common given different environments
+                // Also if a weight turns out to be negative: (-) * (-) = (+) which could explain why everything is a moose
             }
         }
     }
@@ -37,9 +41,10 @@ bool predict_animal(float* raw_frame) {
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 8; c++) {
                 float sum = conv2_bias[f];
-                for (int in_f = 0; in_f < 8; in_f++) {
+                for (int in_f = 0; in_f < 8; in_f++) { //iterates through each of 8 feature maps ("filtered frames")
                     for (int kr = 0; kr < 3; kr++) {
                         for (int kc = 0; kc < 3; kc++) {
+                            //resolution cut in half
                             int in_r = r * 2 + kr - 1;
                             int in_c = c * 2 + kc - 1;
                             if (in_r >= 0 && in_r < 12 && in_c >= 0 && in_c < 16) {
@@ -57,7 +62,7 @@ bool predict_animal(float* raw_frame) {
 
     // Layer FC1 (768 -> 16) + ReLU
     static float fc1_out[16];
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) { //calculates 16 voting neurons
         float sum = fc1_bias[i];
         for (int j = 0; j < 768; j++) {
             sum += flat_features[j] * fc1_weight[i * 768 + j];
@@ -65,12 +70,12 @@ bool predict_animal(float* raw_frame) {
         fc1_out[i] = sum > 0.0f ? sum : 0.0f;
     }
 
-    // Layer FC2 (16 -> 2 classes: 0 = Forest, 1 = Moose)
+    // Layer FC2 (16 -> 2 classes: 0 = Forest, 1 = Moose) 
     static float logits[2];
     for (int i = 0; i < 2; i++) {
         float sum = fc2_bias[i];
         for (int j = 0; j < 16; j++) {
-            sum += fc1_out[j] * fc2_weight[i * 16 + j];
+            sum += fc1_out[j] * fc2_weight[i * 16 + j]; //adds up all the 16 neurons
         }
         logits[i] = sum;
     }

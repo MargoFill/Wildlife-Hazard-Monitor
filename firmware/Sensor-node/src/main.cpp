@@ -50,6 +50,8 @@ bool detectMoose() {
   int votes = 0;
   int validFrames = 0;
   
+  uint32_t frame_start = millis();
+
   for (int i = 0; i < FRAME_COUNT; ++i) {
     if (mlx.getFrame(frame) != 0) {
       Serial.println("[CAMERA] Frame read failed");
@@ -73,6 +75,7 @@ bool detectMoose() {
     bool raw_detection = false; 
 
     // Threshold check
+    // if hottest pixel is less than 4.0 deg hotter than coldest, will skip complex logic 
     if (delta < 4.0f) { 
       Serial.println("[MODEL] Skipped - Flat background temperature");
     } else {
@@ -92,7 +95,12 @@ bool detectMoose() {
     // Print the final verdict for this frame (1 or 0)
     Serial.println(raw_detection ? 1 : 0);
     
-    delay(220);
+    uint32_t elapsed = millis() - frame_start; //TODO: Remeasure after visualizer code is removed
+    if (elapsed < 250) {
+    // We are ahead of schedule. Sleep for the remaining time.
+      delay(250 - elapsed); // waits exactly the right amount of time: 250 ms for camera reading 4Hz
+    } else {
+      Serial.printf("[WARN] Frame dropped! Processing took %lu ms\n", elapsed); 
   }
   
   Serial.printf("[MODEL] %d/%d Moose votes\n", votes, validFrames);
