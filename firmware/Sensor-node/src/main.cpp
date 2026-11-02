@@ -9,12 +9,11 @@
   #include "thermal_model.h"
 
   constexpr gpio_num_t PIR_PIN = GPIO_NUM_5;
-  constexpr int LED_PIN = 40;
   constexpr int I2C_SDA_PIN = 8;
   constexpr int I2C_SCL_PIN = 9;
-  constexpr int LORA_RX_PIN = 3;
-  constexpr int LORA_TX_PIN = 2;
-  constexpr int LORA_BAUD = 9600;
+  constexpr int LORA_RX_PIN = 16;
+  constexpr int LORA_TX_PIN = 17;
+  constexpr int LORA_BAUD = 115200; 
   constexpr uint8_t LORA_DESTINATION = 1;
 
   constexpr int FRAME_COUNT = 8;
@@ -147,25 +146,20 @@
   void setup() {
     Serial.begin(115200);
     delay(300);
-    pinMode(LED_PIN, OUTPUT);
     pinMode(PIR_PIN, INPUT);
 
     const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
     if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
       Serial.println("[WAKE] PIR motion detected");
-      digitalWrite(LED_PIN, HIGH);
       const bool mooseDetected = detectMoose();
-      digitalWrite(LED_PIN, LOW);
       if (mooseDetected) sendMooseFinding();
       else Serial.println("[MODEL] No Moose finding");
     } else {
       Serial.println("[BOOT] PIR calibration");
       const unsigned long start = millis();
       while (millis() - start < PIR_CALIBRATION_MS) {
-        digitalWrite(LED_PIN, ((millis() / 250) % 2) == 0);
         delay(20);
       }
-      digitalWrite(LED_PIN, LOW);
     }
     enterDeepSleep();
   }

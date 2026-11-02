@@ -1,5 +1,6 @@
 #include "animal_prediction.h"
 #include "thermal_model.h"
+#include <cmath>
 
 bool predict_animal(float* raw_frame) {
     // 1. calculate the mean value of the current frame.
