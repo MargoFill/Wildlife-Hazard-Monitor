@@ -20,8 +20,11 @@ def load_split(animal_csv, forest_csv):
     X = np.vstack([X_animal, X_forest])
     y = np.hstack([y_animal, y_forest])
 
-    # Normalization of degrees for a neural network (centering around a zero mean)
-    X = (X - 18.0) / 10.0
+    # # Normalization of degrees for a neural network (centering around a zero mean)
+    # X = (X - 18.0) / 10.0 #(frame - frame.mean()) / frame.std()
+    means = X.mean(axis=(2, 3), keepdims=True)
+    stds = X.std(axis=(2, 3), keepdims=True) + 1e-6
+    X = (X - means) / stds
 
     return torch.tensor(X), torch.tensor(y)
 
