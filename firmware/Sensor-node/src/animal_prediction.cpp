@@ -27,7 +27,7 @@ bool predict_animal(float* raw_frame) {
     }
 
     
-    //Convs 1 2 3 4
+    //Convs 1 2 3 
     // Conv1 layer (1 -> 8 channels, 3x3) + ReLU + MaxPool (24x32 -> 12x16)
     static float conv1_out[8][12][16] = {0};
     for (int f = 0; f < 8; f++) {
