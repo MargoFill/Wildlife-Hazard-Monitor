@@ -6,8 +6,9 @@
   #include <esp_sleep.h>
   #include "animal_prediction.h"
 
-  #include "thermal_model.h"
-
+  //#include "thermal_model.h"
+  #include "thermal_modelV2.h"
+  
   constexpr gpio_num_t PIR_PIN = GPIO_NUM_5;
   constexpr int I2C_SDA_PIN = 8;
   constexpr int I2C_SCL_PIN = 9;
