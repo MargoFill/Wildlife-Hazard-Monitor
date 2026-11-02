@@ -2,14 +2,32 @@
 #include "thermal_model.h"
 
 bool predict_animal(float* raw_frame) {
-    // 1.  Frame normalization
+    // 1. calculate the mean value of the current frame.
+    float sum = 0.0f;
+    for (int i = 0; i < 768; i++) {
+        sum += raw_frame[i];
+    }
+    float mean = sum / 768.0f;
+
+    // 2. Calculate the standard deviation (std) of the current frame
+    float variance_sum = 0.0f;
+    for (int i = 0; i < 768; i++) {
+        float diff = raw_frame[i] - mean;
+        variance_sum += diff * diff;
+    }
+    float std_dev = sqrtf(variance_sum / 768.0f);
+    if (std_dev < 0.1f) std_dev = 0.1f; // no division by zero if the frame is uniform
+
+    // 3. Dynamic Frame Normalization
     static float input[1][24][32];
     for (int r = 0; r < 24; r++) {
         for (int c = 0; c < 32; c++) {
-            input[0][r][c] = (raw_frame[r * 32 + c] - 18.0f) / 10.0f;
+            input[0][r][c] = (raw_frame[r * 32 + c] - mean) / std_dev;
         }
     }
 
+    
+    //Convs 1 2 3 4
     // Conv1 layer (1 -> 8 channels, 3x3) + ReLU + MaxPool (24x32 -> 12x16)
     static float conv1_out[8][12][16] = {0};
     for (int f = 0; f < 8; f++) {
