@@ -12,8 +12,8 @@
   constexpr gpio_num_t PIR_PIN = GPIO_NUM_5;
   constexpr int I2C_SDA_PIN = 8;
   constexpr int I2C_SCL_PIN = 9;
-  constexpr int LORA_RX_PIN = 16;
-  constexpr int LORA_TX_PIN = 17;
+  constexpr int LORA_RX_PIN = 17;
+  constexpr int LORA_TX_PIN = 16;
   constexpr int LORA_BAUD = 115200; 
   constexpr uint8_t LORA_DESTINATION = 1;
 
@@ -118,9 +118,13 @@
     LoRaSerial.begin(LORA_BAUD, SERIAL_8N1, LORA_RX_PIN, LORA_TX_PIN);
     delay(100);
     LoRaSerial.println("AT+ADDRESS=5");
+    delay(100);
     LoRaSerial.println("AT+NETWORKID=11");
+    delay(100);
     LoRaSerial.println("AT+BAND=868500000");
+    delay(100);
     LoRaSerial.println("AT+PARAMETER=10,7,2,6");
+    delay(100);
     LoRaSerial.println("AT+CRFOP=14");
     delay(300);
   }
@@ -132,6 +136,18 @@
     LoRaSerial.println(command);
     LoRaSerial.flush();
     Serial.println("[LORA] " + payload);
+
+    unsigned long startWait = millis();
+    while (millis() - startWait < 3000) {
+      if (LoRaSerial.available()) {
+        String response = LoRaSerial.readStringUntil('\n');
+        Serial.println("[LORA RESPONSE] " + response);
+        if (response.indexOf("+OK") >= 0 || response.indexOf("ERR") >= 0) {
+          break; // Transmission finished or failed
+        }
+      }
+      delay(10);
+    }
   }
 
   [[noreturn]] void enterDeepSleep() {

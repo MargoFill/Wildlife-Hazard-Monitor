@@ -1,5 +1,4 @@
 #include "animal_prediction.h"
-#include "thermal_model.h"
 #include <cmath>
 #include "thermal_modelV2.h"
 //#include "thermal_model.h"
