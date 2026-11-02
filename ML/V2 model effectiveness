@@ -1,0 +1,15 @@
+Epoch 01/13 | Train Loss: 0.6763 Acc: 57.0% | Val Acc: 74.0%
+Epoch 02/13 | Train Loss: 0.4727 Acc: 79.1% | Val Acc: 76.0%
+Epoch 03/13 | Train Loss: 0.3018 Acc: 88.2% | Val Acc: 88.0%
+Epoch 04/13 | Train Loss: 0.2068 Acc: 92.5% | Val Acc: 94.0%
+Epoch 05/13 | Train Loss: 0.1617 Acc: 94.5% | Val Acc: 86.0%
+Epoch 06/13 | Train Loss: 0.1223 Acc: 96.5% | Val Acc: 94.0%
+Epoch 07/13 | Train Loss: 0.1031 Acc: 97.0% | Val Acc: 96.0%
+Epoch 08/13 | Train Loss: 0.1014 Acc: 96.3% | Val Acc: 96.0%
+Epoch 09/13 | Train Loss: 0.0727 Acc: 97.6% | Val Acc: 80.0%
+Epoch 10/13 | Train Loss: 0.0806 Acc: 97.5% | Val Acc: 96.0%
+Epoch 11/13 | Train Loss: 0.0661 Acc: 97.9% | Val Acc: 97.0%
+Epoch 12/13 | Train Loss: 0.0429 Acc: 99.0% | Val Acc: 90.0%
+Epoch 13/13 | Train Loss: 0.0365 Acc: 98.9% | Val Acc: 91.0%
+
+ ACCURACY ON THE TEST SET: 87.50%
