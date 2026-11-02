@@ -95,13 +95,6 @@
       // Print the final verdict for this frame (1 or 0)
       Serial.println(raw_detection ? 1 : 0);
 
-      uint32_t elapsed = millis() - frame_start; //TODO: Remeasure after visualizer code is removed
-      if (elapsed < 250) {
-      // We are ahead of schedule. Sleep for the remaining time.
-        delay(250 - elapsed); // waits exactly the right amount of time: 250 ms for camera reading 4Hz
-      } else {
-        Serial.printf("[WARN] Frame dropped! Processing took %lu ms\n", elapsed);
-      }
     }
 
     Serial.printf("[MODEL] %d/%d Moose votes\n", votes, validFrames);
