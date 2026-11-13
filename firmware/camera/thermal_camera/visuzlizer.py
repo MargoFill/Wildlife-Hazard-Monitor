@@ -139,7 +139,7 @@ while plt.fignum_exists(fig.number):
             img.set_clim(t_min, t_max)
 
     if verdict == 1:
-        status_text.set_text(f" MOOSE DETECTED (Frame {frame_counter}/8) ")
+        status_text.set_text(f" ANIMAL DETECTED (Frame {frame_counter}/8) ")
         status_text.set_color("yellow")
         status_text.set_bbox(dict(boxstyle="round,pad=0.5", facecolor="#dc2626", edgecolor="#f87171", alpha=0.8))
     else:
