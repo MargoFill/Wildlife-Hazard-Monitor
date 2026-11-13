@@ -41,7 +41,7 @@
   }
 
 
-  // Initializing SD card and creating log header
+  // Initializing SD card and creating log headerg
   bool initSD() {
     SPI.begin(SD_CARD_PIN_SCK, SD_CARD_PIN_MISO, SD_CARD_PIN_MOSI, SD_CARD_PIN_CS);
     if (!SD.begin(SD_CARD_PIN_CS)) {
