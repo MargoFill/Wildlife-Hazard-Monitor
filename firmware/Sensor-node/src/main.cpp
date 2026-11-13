@@ -5,6 +5,8 @@
   #include <time.h>
   #include <esp_sleep.h>
   #include "animal_prediction.h"
+  #include <SPI.h> //library for SD card connection
+  #include <SD.h> //library for files usage
 
   //#include "thermal_model.h"
   #include "thermal_modelV2.h"
@@ -14,6 +16,12 @@
   constexpr int I2C_SCL_PIN = 9;
   constexpr int LORA_RX_PIN = 17;
   constexpr int LORA_TX_PIN = 16;
+  constexpr int SD_CARD_PIN_MOSI=10;//MOSI
+  constexpr int SD_CARD_PIN_CS=11; //CS
+  constexpr int SD_CARD_PIN_SCK=12; //SCK
+  constexpr int SD_CARD_PIN_MISO=13; //MISO 
+
+  
   constexpr int LORA_BAUD = 115200; 
   constexpr uint8_t LORA_DESTINATION = 1;
 
@@ -24,8 +32,52 @@
   Adafruit_MLX90640 mlx;
   HardwareSerial LoRaSerial(1);
   float frame[32 * 24];
+  bool sdReady=false; // if sd card is not found, sd block is not executed
+
+  String timestamp() {
+    const time_t now = time(nullptr);
+    if (now >= 1700000000) return String(static_cast<unsigned long>(now));
+    return String("uptime_ms=") + String(static_cast<unsigned long>(millis()));
+  }
 
 
+  // Initializing SD card and creating log header
+  bool initSD() {
+    SPI.begin(SD_CARD_PIN_SCK, SD_CARD_PIN_MISO, SD_CARD_PIN_MOSI, SD_CARD_PIN_CS);
+    if (!SD.begin(SD_CARD_PIN_CS)) {
+      Serial.println("[SD] Card mount failed!");
+      return false;
+    }
+    Serial.println("[SD] Card initialized");
+
+    // Create an event table header if the file does not already exist
+    if (!SD.exists("/detections.csv")) {
+      File f = SD.open("/detections.csv", FILE_WRITE);// creates file
+      if (f) {
+        f.println("timestamp,animal_detected,detected_frames,total_frames");
+        f.close(); // Closes the file and forces data to be flushed from the ESP32's RAM to the SD card's flash memory.
+      }
+    }
+    return true;
+  }
+  
+  void logDetection(bool detected, int detectedFrames, int totalFrames) {
+    if (!sdReady) return;
+    File f = SD.open("/detections.csv", FILE_APPEND);// opens file after the last written data, in the end
+    if (f) {
+      f.print(timestamp());
+      f.print(',');
+      f.print(detected ? 1 : 0);
+      f.print(",");
+      f.print(detectedFrames);
+      f.print(',');
+      f.println(totalFrames);
+      f.close(); // close the file right after writing mew data, so it saves to the flash memory immediately
+    } else {
+      Serial.println("[SD] Failed to write /detections.csv");
+    }
+  }
+  
   bool initializeThermalCamera() {
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
     Wire.setClock(400000);
@@ -51,6 +103,15 @@
     int validFrames = 0;
 
     uint32_t frame_start = millis();
+
+    // Open the file once in 8 frames
+    File frameFile;
+    if (sdReady) {
+      frameFile = SD.open("/frames.csv", FILE_APPEND);
+      if (!frameFile) {
+        Serial.println("[SD] Failed to open /frames.csv");
+      }
+    }
 
     for (int i = 0; i < FRAME_COUNT; ++i) {
       if (mlx.getFrame(frame) != 0) {
@@ -91,21 +152,31 @@
       for (int p = 0; p < 768; p++) {
         Serial.print(frame[p], 1);
         Serial.print(',');
+        if (frameFile) {
+          frameFile.print(frame[p], 1);
+          frameFile.print(',');
+        }
       }
       // Print the final verdict for this frame (1 or 0)
-      Serial.println(raw_detection ? 1 : 0);
-
+      int verdict = raw_detection ? 1 : 0;
+      Serial.println(verdict);
+      if (frameFile) {
+        frameFile.println(verdict);
+        frameFile.flush(); // forces the buffer to be flushed from the ESP32's RAM to the card after every frame
+      }
+    }
+    if (frameFile) {
+      frameFile.close(); // closes the file and writes the final result in events.csv
     }
 
     Serial.printf("[MODEL] %d/%d Animal votes\n", votes, validFrames);
-    return (validFrames >= REQUIRED_VOTES) && (votes >= REQUIRED_VOTES);
+    //return (validFrames >= REQUIRED_VOTES) && (votes >= REQUIRED_VOTES);
+    bool detected = (validFrames >= REQUIRED_VOTES) && (votes >= REQUIRED_VOTES);
+    // Save detection verdict and frame vote count to /detections.csv
+    logDetection(detected, votes, validFrames);
+    return detected;
   }
 
-  String timestamp() {
-    const time_t now = time(nullptr);
-    if (now >= 1700000000) return String(static_cast<unsigned long>(now));
-    return String("uptime_ms=") + String(static_cast<unsigned long>(millis()));
-  }
 
   void initializeLoRa() {
     LoRaSerial.begin(LORA_BAUD, SERIAL_8N1, LORA_RX_PIN, LORA_TX_PIN);
@@ -144,6 +215,11 @@
   }
 
   [[noreturn]] void enterDeepSleep() {
+    // filoe system security before going deep fleep mode
+    if (sdReady) {
+      SD.end();
+      SPI.end();
+    }
     while (digitalRead(PIR_PIN) == HIGH) delay(100);
     esp_sleep_enable_ext0_wakeup(PIR_PIN, 1);
     Serial.println("[SLEEP] Waiting for PIR motion");
@@ -157,6 +233,8 @@
     Serial.begin(115200);
     delay(300);
     pinMode(PIR_PIN, INPUT);
+
+    sdReady = initSD(); // Initialize SD card on every boot/wake
 
     const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
     if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
