@@ -45,7 +45,7 @@
     return true;
   }
 
-  bool detectMoose() {
+  bool detectAnimal() {
     if (!initializeThermalCamera()) return false;
     int votes = 0;
     int validFrames = 0;
@@ -97,7 +97,7 @@
 
     }
 
-    Serial.printf("[MODEL] %d/%d Moose votes\n", votes, validFrames);
+    Serial.printf("[MODEL] %d/%d Animal votes\n", votes, validFrames);
     return (validFrames >= REQUIRED_VOTES) && (votes >= REQUIRED_VOTES);
   }
 
@@ -122,9 +122,9 @@
     delay(300);
   }
 
-  void sendMooseFinding() {
+  void sendAnimalFinding() {
     initializeLoRa();
-    const String payload = String("WILDLIFE,moose,node=sensor-1,ts=") + timestamp();
+    const String payload = String("WILDLIFE,animal,node=sensor-1,ts=") + timestamp();
     const String command = String("AT+SEND=") + String(LORA_DESTINATION) + "," + String(payload.length()) + "," + payload;
     LoRaSerial.println(command);
     LoRaSerial.flush();
@@ -161,9 +161,9 @@
     const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
     if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
       Serial.println("[WAKE] PIR motion detected");
-      const bool mooseDetected = detectMoose();
-      if (mooseDetected) sendMooseFinding();
-      else Serial.println("[MODEL] No Moose finding");
+      const bool animalDetected = detectAnimal();
+      if (animalDetected) sendAnimalFinding();
+      else Serial.println("[MODEL] No Animal finding");
     } else {
       Serial.println("[BOOT] PIR calibration");
       const unsigned long start = millis();
@@ -174,4 +174,4 @@
     enterDeepSleep();
   }
 
-  void loop() {}
+  void loop() {} 

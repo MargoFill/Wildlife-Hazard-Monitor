@@ -1,5 +1,5 @@
  #include <Arduino.h>
-  #include <HardwareSerial.h>
+#include <HardwareSerial.h>
 
   constexpr int           LORA_BAUD         = 115200;
   constexpr uint8_t       LORA_SELF_ADDRESS = 1;
@@ -40,7 +40,7 @@
     sendCmd("AT+NETWORKID=" + String(LORA_NETWORK_ID));
     sendCmd("AT+BAND=" + String(LORA_BAND));
     sendCmd("AT+PARAMETER=" + String(LORA_PARAMS));
-    Serial.println("[READY] waiting for moose detection...");
+    Serial.println("[READY] waiting for animal detection...");
   }
 
   void loop() {
@@ -60,7 +60,7 @@
             Serial.println("[MESSAGE] " + msg);
           }
 
-          Serial.println("[WAKE] Moose is detected");
+          Serial.println("[WAKE] Animal is detected");
           neopixelWrite(RGB_PIN, 40, 40, 40);
           led_off_at = millis() + LED_HOLD_MS;
         }

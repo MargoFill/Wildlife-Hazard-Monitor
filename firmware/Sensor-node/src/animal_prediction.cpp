@@ -85,7 +85,7 @@ bool predict_animal(float* raw_frame) {
         fc1_out[i] = sum > 0.0f ? sum : 0.0f;
     }
 
-    // Layer FC2 (16 -> 2 classes: 0 = Forest, 1 = Moose)
+    // Layer FC2 (16 -> 2 classes: 0 = Forest, 1 = Animal)
     static float logits[2];
     for (int i = 0; i < 2; i++) {
         float sum = fc2_bias[i];
@@ -95,6 +95,6 @@ bool predict_animal(float* raw_frame) {
         logits[i] = sum;
     }
 
-    // If the probability of the Moose class (index 1) is higher than that of the Forest class (index 0)
+    // If the probability of the Animal class (index 1) is higher than that of the Forest class (index 0)
     return logits[1] > logits[0];
 }
