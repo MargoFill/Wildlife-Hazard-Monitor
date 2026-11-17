@@ -1,0 +1,24 @@
+# PlatformIO build output
+.pio/
+.pioenvs/
+.clangd/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Local tooling and generated reports
+.vscode/
+.idea/
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# kicad
+ki-cad footprints/

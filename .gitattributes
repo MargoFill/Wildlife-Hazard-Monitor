@@ -1,0 +1,11 @@
+# Keep source and documentation diffs stable across platforms.
+* text=auto
+*.cpp text eol=lf
+*.h text eol=lf
+*.ino text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.csv text eol=lf
+*.stl binary
+*.step binary
+*.bak binary
