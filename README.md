@@ -6,7 +6,7 @@ An embedded wildlife-detection prototype for identifying animals near roads and 
 
 ## What is here
 - **Sensor node** - ESP32-S3 firmware for PIR wake, MLX90640 capture, classification, SD logging, and LoRa alerts.
-- **Receiver node** - PlatformIO project for receiving-side development.
+- **Receiver node** - PlatformIO project that receives LoRa alerts, drives the status LED, and logs payloads to SD.
 - **Machine learning** - PyTorch training code and CSV datasets for `Animal` / `Forest` classification.
 - **Camera experiments** - Standalone thermal and AI-camera sketches and visualisation tools.
 - **Hardware** - KiCad footprints, enclosure parts, and sensor-related models.

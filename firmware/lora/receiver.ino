@@ -1,4 +1,4 @@
- #include <Arduino.h>
+#include <Arduino.h>
 #include <HardwareSerial.h>
 
   constexpr int           LORA_BAUD         = 115200;

@@ -4,7 +4,7 @@
 
 - [ ] Remove or gate verbose boot/debug output for production builds.
 - [ ] Add configurable sensor-node numbering.
-- [ ] Document and verify the SD-card wiring and logging format.
+- [x] Move SD-card logging to the receiver node and document its wiring/log format.
 
 ## System validation
 
