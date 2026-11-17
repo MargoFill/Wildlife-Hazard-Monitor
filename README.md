@@ -14,14 +14,6 @@ An embedded wildlife-detection prototype for identifying animals near roads and 
 
 ## System overview
 
-```text
-PIR motion -> ESP32-S3 -> MLX90640 thermal frames -> compact classifier
-                                      |
-                                  SD logging
-                                      |
-                                  LoRa alert -> receiver
-```
-
 <img width="920" height="473" alt="image" src="https://github.com/user-attachments/assets/ecb367cb-c659-4261-bcc4-04f6c79234f3" />
 
 ## Hardware currently referenced
