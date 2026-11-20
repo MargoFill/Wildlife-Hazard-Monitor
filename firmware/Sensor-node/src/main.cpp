@@ -15,7 +15,6 @@
   constexpr int LORA_RX_PIN = 17;
   constexpr int LORA_TX_PIN = 16;
 
-  
   constexpr int LORA_BAUD = 115200; 
   constexpr uint8_t LORA_DESTINATION = 1;
 
