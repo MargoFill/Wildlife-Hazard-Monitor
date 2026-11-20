@@ -26,3 +26,4 @@ ki-cad footprints/
 # test codes
 firmware/lora/
 firmware/camera/
+docs/IMPLEMENTATION_NOTES.md
