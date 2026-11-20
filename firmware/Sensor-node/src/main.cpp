@@ -1,4 +1,5 @@
 ﻿#include <Arduino.h>
+#include <math.h>
 #include <Wire.h>
 #include <Adafruit_MLX90640.h>
 #include <HardwareSerial.h>
@@ -30,12 +31,15 @@ constexpr unsigned long PIR_CALIBRATION_MS = 10000;
 
 Adafruit_MLX90640 mlx;
 HardwareSerial LoRaSerial(1);
+[[noreturn]] void enterDeepSleep();
 
 String timestamp() {
   const time_t now = time(nullptr);
   if (now >= 1700000000) return String(static_cast<unsigned long>(now));
   return String("uptime_ms=") + String(static_cast<unsigned long>(millis()));
 }
+
+float lastMin = 0.0f, lastMax = 0.0f, lastDelta = 0.0f;
 
 bool initializeThermalCamera(float* warmupFrame) {
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
@@ -80,6 +84,9 @@ const float* detectAnimal() {
       if (frame[p] < t_min) t_min = frame[p];
     }
     float delta = t_max - t_min;
+    lastMin = t_min;
+    lastMax = t_max;
+    lastDelta = delta;
     Serial.printf("[DEBUG] Min: %.1fC | Max: %.1fC | Delta: %.1fC\n", t_min, t_max, delta);
 
     bool raw_detection = false;
@@ -94,11 +101,9 @@ const float* detectAnimal() {
     if (raw_detection) {
       votes++;
       if (votes == REQUIRED_VOTES) {
-        // Snapshot the deciding-vote frame and exit immediately — no need to
-        // capture remaining frames; starting LoRa sooner saves up to
-        // (FRAME_COUNT - i - 1) * 250 ms at the 4 Hz refresh rate.
+        // Keep capturing the remaining frames so the direct USB visualizer
+        // receives the complete eight-frame sequence.
         memcpy(decidingFrame, frame, sizeof(decidingFrame));
-        break; // early exit — votes threshold met; validFrames >= REQUIRED_VOTES already holds
       }
     }
 
@@ -133,120 +138,73 @@ static void base64Encode(const uint8_t* src, size_t srcLen, String& out) {
   }
 }
 
-// Transmit one quantised thermal frame over LoRa.
-// Packet format:
-//   Header : FRAME_HDR,<ts>,<t_min_x10>,<t_max_x10>,<num_chunks>
-//   Data x5: FRAME_DATA,<ts>,<chunk_idx>,<base64_payload>
-// Receiver dequantises with: temp = t_min + (q / 255.0) * (t_max - t_min)
-void sendFrame(const float* f) {
-  float t_min = 100.0f, t_max = -100.0f;
-  for (int p = 0; p < 768; p++) {
-    if (f[p] > t_max) t_max = f[p];
-    if (f[p] < t_min) t_min = f[p];
-  }
-  const float range = (t_max - t_min) > 0.0f ? (t_max - t_min) : 1.0f;
-
-  uint8_t q[768];
-  for (int p = 0; p < 768; p++) {
-    q[p] = (uint8_t)(((f[p] - t_min) / range) * 255.0f + 0.5f);
-  }
-
-  const int totalChunks = (768 + FRAME_CHUNK_PIXELS - 1) / FRAME_CHUNK_PIXELS;
-  const String ts = timestamp();
-
-  // Header packet
-  {
-    String payload = String("FRAME_HDR,") + ts
-        + "," + String((int)(t_min * 10.0f))
-        + "," + String((int)(t_max * 10.0f))
-        + "," + String(totalChunks);
-    String cmd = String("AT+SEND=") + LORA_DESTINATION + "," + payload.length() + "," + payload;
-    LoRaSerial.println(cmd);
-    LoRaSerial.flush();
-    Serial.println("[LORA FRAME HDR] " + payload);
-    delay(500);
-  }
-
-  // Data packets
-  String b64; // pre-allocated once; reused per chunk to avoid repeated heap churn
-  for (int chunk = 0; chunk < totalChunks; chunk++) {
-    const int start  = chunk * FRAME_CHUNK_PIXELS;
-    const int pixels = min(FRAME_CHUNK_PIXELS, 768 - start);
-
-    b64.clear();
-    base64Encode(q + start, (size_t)pixels, b64);
-
-    String payload = String("FRAME_DATA,") + ts
-        + "," + String(chunk)
-        + "," + b64;
-    // Drain any leftover bytes (e.g. previous +OK) before sending the next command
-    while (LoRaSerial.available()) LoRaSerial.read();
-
-    String cmd = String("AT+SEND=") + LORA_DESTINATION + "," + payload.length() + "," + payload;
-    LoRaSerial.println(cmd);
-    LoRaSerial.flush();
-    Serial.printf("[LORA FRAME] chunk %d/%d (%d chars)\n", chunk + 1, totalChunks, payload.length());
-
-    // Gate on +OK or ERR before sending next chunk
-    const unsigned long t0 = millis();
-    while (millis() - t0 < 2000) {
-      if (LoRaSerial.available()) {
-        String resp = LoRaSerial.readStringUntil('\n');
-        resp.trim();
-        Serial.println("[LORA RESP] " + resp);
-        if (resp.indexOf("+OK") >= 0 || resp.indexOf("ERR") >= 0) break;
-      }
-      delay(10);
-    }
-    delay(300); // 300ms idle before next send — prevents back-to-back UART collisions
-  }
-  Serial.println("[LORA FRAME] All chunks sent");
-}
-
-void initializeLoRa() {
-  LoRaSerial.begin(LORA_BAUD, SERIAL_8N1, LORA_RX_PIN, LORA_TX_PIN);
-  delay(100);
-  LoRaSerial.println("AT+ADDRESS=5");
-  delay(100);
-  LoRaSerial.println("AT+NETWORKID=11");
-  delay(100);
-  LoRaSerial.println("AT+BAND=868500000");
-  delay(100);
-  // AT+PARAMETER=<SF>,<BW>,<CR>,<Preamble>
-  //   SF=7   Spreading Factor. Range 5-11. Higher = longer range but slower & more airtime.
-  //          SF7 is the fastest option (~300-800m open field, less in dense forest).
-  //          Gives ~8x less airtime than SF10. Increase to SF8/9/10 only if RSSI at the
-  //          gateway is worse than -120 dBm or SNR below -10 dB.
-  //   BW=7   Bandwidth index. 7=125kHz (standard). 8=250kHz, 9=500kHz.
-  //          125kHz is the safest choice: best sensitivity and widest receiver support.
-  //   CR=2   Coding Rate. 1=4/5, 2=4/6, 3=4/7, 4=4/8.
-  //          CR 4/6 adds moderate forward error correction. Use CR=1 (4/5) in a clean
-  //          RF environment to shave ~15% off airtime with no real downside.
-  //   Preamble=6  Symbols prepended so receiver can lock on. Min is 4 per LoRa spec.
-  //          6 is a safe margin for outdoor use; 4 saves a small amount of airtime.
-  LoRaSerial.println("AT+PARAMETER=7,7,2,6");  // SF7, 125kHz, CR 4/6 — fast; CR 4/5 causes ERR=13 on back-to-back sends
-  delay(100);
-  LoRaSerial.println("AT+CRFOP=14");
-  delay(300);
-}
-
-void sendAnimalFinding() {
-  initializeLoRa();
-  const String payload = String("WILDLIFE,animal,node=sensor-1,ts=") + timestamp();
-  const String command = String("AT+SEND=") + String(LORA_DESTINATION) + "," + String(payload.length()) + "," + payload;
+// Each command consumes its own response; +OK is module acceptance, not remote delivery.
+bool radioCommand(const String& command) {
+  while (LoRaSerial.available()) LoRaSerial.read();
   LoRaSerial.println(command);
-  LoRaSerial.flush();
-  Serial.println("[LORA] " + payload);
-
-  unsigned long startWait = millis();
-  while (millis() - startWait < 3000) {
-    if (LoRaSerial.available()) {
-      String response = LoRaSerial.readStringUntil('\n');
-      Serial.println("[LORA RESPONSE] " + response);
-      if (response.indexOf("+OK") >= 0 || response.indexOf("ERR") >= 0) break;
+  String response;
+  const unsigned long started = millis();
+  while (millis() - started < 5000) {
+    while (LoRaSerial.available()) {
+      const char c = LoRaSerial.read();
+      if (c == '\n') {
+        response.trim();
+        Serial.println("[RADIO] " + response);
+        if (response == "+OK") { delay(350); return true; }
+        if (response.startsWith("+ERR")) return false;
+        response = "";
+      } else if (c != '\r') response += c;
     }
-    delay(10);
+    delay(1);
   }
+  Serial.println("[RADIO] Command timed out: " + command.substring(0, 24));
+  return false;
+}
+
+bool sendPacket(const String& payload) {
+  if (payload.length() > 240) return false;
+  return radioCommand(String("AT+SEND=") + LORA_DESTINATION + "," + payload.length() + "," + payload);
+}
+
+void sendFrame(const float* f) {
+  float lo = f[0], hi = f[0];
+  for (int i = 0; i < 768; ++i) {
+    if (!isfinite(f[i])) { Serial.println("[FRAME] Invalid temperature"); return; }
+    lo = min(lo, f[i]); hi = max(hi, f[i]);
+  }
+  // Quantize against exactly the same endpoints used by the receiver.
+  lo = floorf(lo * 10) / 10; hi = ceilf(hi * 10) / 10;
+  uint8_t q[768];
+  for (int i = 0; i < 768; ++i)
+    q[i] = hi > lo ? (uint8_t)lroundf((f[i] - lo) * 255 / (hi - lo)) : 0;
+  const String id = timestamp();
+  const String header = String("FRAME_HDR,") + id + "," + String((int)lroundf(lo * 10))
+      + "," + String((int)lroundf(hi * 10)) + ",6";
+  if (!sendPacket(header)) { Serial.println("[FRAME] Header send failed; aborted"); return; }
+  for (int chunk = 0; chunk < 6; ++chunk) {
+    String encoded;
+    base64Encode(q + chunk * 150, min(150, 768 - chunk * 150), encoded);
+    if (!sendPacket(String("FRAME_DATA,") + id + "," + chunk + "," + encoded)) {
+      Serial.println("[FRAME] Chunk send failed; aborted"); return;
+    }
+  }
+  Serial.println("[FRAME] All packets accepted by local radio");
+}
+
+bool initializeLoRa() {
+  LoRaSerial.begin(LORA_BAUD, SERIAL_8N1, LORA_RX_PIN, LORA_TX_PIN);
+  delay(200);
+  const char* commands[] = {"AT", "AT+ADDRESS=5", "AT+NETWORKID=11",
+    "AT+BAND=868500000", "AT+PARAMETER=7,7,2,6", "AT+CRFOP=14"};
+  for (const char* command : commands) if (!radioCommand(command)) return false;
+  return true;
+}
+
+bool sendStatus(bool wildlife) {
+  return sendPacket(String("STATUS,wildlife=") + (wildlife ? "1" : "0")
+      + ",min_x10=" + String((int)(lastMin * 10))
+      + ",max_x10=" + String((int)(lastMax * 10))
+      + ",uptime_ms=" + String(millis()));
 }
 
 [[noreturn]] void enterDeepSleep() {
@@ -279,8 +237,9 @@ void setup() {
   if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("[WAKE] PIR motion detected");
     const float* decidingFrame = detectAnimal();
+    if (!initializeLoRa() || !sendStatus(decidingFrame != nullptr)) enterDeepSleep();
     if (decidingFrame) {
-      sendAnimalFinding();
+      delay(600); // give receiver RYLR module time to exit post-receive state
       sendFrame(decidingFrame); // transmit the frame that cast the deciding vote
     } else {
       Serial.println("[MODEL] No Animal finding");

@@ -77,38 +77,54 @@ while plt.fignum_exists(fig.number):
     if not line:
         continue
 
-    # Clean up any leading boot garbage before '[' or numbers
-    if "[" in line and not line.startswith("["):
-        line = line[line.find("["):]
+    # The receiver emits reconstructed frames as FRAME_PIXELS,<ts>,768 temps,<src>.
+    # Keep accepting the sensor's legacy 768-pixel-plus-verdict lines too.
+    if line.startswith("FRAME_PIXELS,"):
+        parts = line.split(',')
+        if len(parts) != 771:
+            print(f"[PARSE ERROR] Expected 768 received pixels, got {len(parts) - 3}")
+            continue
+        try:
+            raw_pixels = np.array(parts[2:770], dtype=float)
+        except ValueError as e:
+            print(f"[PARSE ERROR] Corrupt received frame: {e}")
+            continue
+        verdict = 1
+        frame_counter += 1
+        source = parts[770]
+        print(f"[RECEIVED FRAME {frame_counter}] source={source} ts={parts[1]}")
+    else:
+        # Clean up any leading boot garbage before '[' or numbers
+        if "[" in line and not line.startswith("["):
+            line = line[line.find("["):]
 
-    parts = line.split(",")
+        parts = line.split(",")
 
-    # 3. Print non-frame ESP32 logs ([BOOT], [WAKE], [CAMERA], [MODEL]) to console
-    if len(parts) != 769:
-        print(f"ESP32 -> {line}")
-        if "[SLEEP]" in line:
-            status_text.set_text(" SLEEPING (WAITING FOR PIR) ")
-            status_text.set_color("cyan")
-            status_text.set_bbox(dict(boxstyle="round,pad=0.4", facecolor="#1e3a8a", alpha=0.8))
-        elif "[WAKE]" in line:
-            frame_counter = 0
-            status_text.set_text(" PIR TRIGGERED - READING... ")
-            status_text.set_color("white")
-        fig.canvas.draw_idle()
-        fig.canvas.flush_events()
-        continue
+        # 3. Print non-frame ESP32 logs ([BOOT], [WAKE], [CAMERA], [MODEL]) to console
+        if len(parts) != 769:
+            print(f"ESP32 -> {line}")
+            if "[SLEEP]" in line:
+                status_text.set_text(" SLEEPING (WAITING FOR PIR) ")
+                status_text.set_color("cyan")
+                status_text.set_bbox(dict(boxstyle="round,pad=0.4", facecolor="#1e3a8a", alpha=0.8))
+            elif "[WAKE]" in line:
+                frame_counter = 0
+                status_text.set_text(" PIR TRIGGERED - READING... ")
+                status_text.set_color("white")
+            fig.canvas.draw_idle()
+            fig.canvas.flush_events()
+            continue
 
-    # 4. Parse the 768 pixels + 1 prediction verdict
-    try:
-        raw_pixels = np.array(parts[:768], dtype=float)
-        verdict = int(parts[768])
-    except ValueError as e:
-        print(f"[PARSE ERROR] Corrupt frame line: {e}")
-        continue
+        # Legacy sensor format: 768 temperatures followed by 0/1 verdict.
+        try:
+            raw_pixels = np.array(parts[:768], dtype=float)
+            verdict = int(parts[768])
+        except ValueError as e:
+            print(f"[PARSE ERROR] Corrupt frame line: {e}")
+            continue
+        frame_counter += 1
 
-    frame_counter += 1
-
-    # 5. Diagnose NaN / Inf / Corrupt values (Crucial for debugging 8/8 false positives!)
+    # Diagnose NaN / Inf / corrupt values and render the received frame.
     nan_count = np.isnan(raw_pixels).sum() + np.isinf(raw_pixels).sum()
     zero_count = (raw_pixels == 0.0).sum()
 
