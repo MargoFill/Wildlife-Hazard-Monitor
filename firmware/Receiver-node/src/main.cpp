@@ -3,6 +3,8 @@
 #include <HardwareSerial.h>
 #include <SPI.h>
 #include <SD.h>
+#include "esp_sleep.h"
+#include "driver/gpio.h"
 
 constexpr int LORA_BAUD = 115200;
 constexpr uint8_t LORA_SELF_ADDRESS = 1;
@@ -30,12 +32,24 @@ void sendCmd(const String& cmd) {
   Serial.println(">> " + cmd);
   LoRaSerial.println(cmd);
   const unsigned long started = millis();
+  String response = "";
   while (millis() - started < 300) {
-    while (LoRaSerial.available()) Serial.write(LoRaSerial.read());
+    while (LoRaSerial.available()) {
+      const char c = LoRaSerial.read();
+      if (c == '\n') {
+        response.trim();
+        if (response.length() > 0) Serial.println("<< " + response);
+        response = "";
+      } else if (c != '\r') {
+        response += c;
+      }
+    }
   }
+  if (response.length() > 0) Serial.println("<< " + response);
 }
 
 bool initializeSd() {
+  Serial.println("[SD] starting");
   SPI.begin(SD_CARD_PIN_SCK, SD_CARD_PIN_MISO, SD_CARD_PIN_MOSI, SD_CARD_PIN_CS);
   if (!SD.begin(SD_CARD_PIN_CS)) {
     Serial.println("[SD] Card mount failed");
@@ -117,9 +131,12 @@ void setup() {
 }
 
 void loop() {
+  // Drain all available UART data before considering sleep
   while (LoRaSerial.available()) {
     const char character = LoRaSerial.read();
     if (character == '\n') {
+      line.trim();
+      if (line.length() > 0) Serial.println("[LORA RAW] " + line);
       handleLoRaLine(line);
       line = "";
     } else if (character != '\r') {
@@ -131,4 +148,16 @@ void loop() {
     neopixelWrite(RGB_PIN, 0, 0, 0);
     led_off_at = 0;
   }
+
+  // Only sleep when the LED is off and no partial line is buffered
+  if (led_off_at == 0 && line.length() == 0) {
+    // Wake on GPIO 17 going LOW (LoRa UART start bit)
+    gpio_wakeup_enable((gpio_num_t)LORA_RX_PIN, GPIO_INTR_LOW_LEVEL);
+    esp_sleep_enable_gpio_wakeup();
+    Serial.println("Going to sleep");
+    Serial.flush();  // Ensure all serial output is sent before sleeping
+    esp_light_sleep_start();
+    // CPU resumes here; UART state and all variables are preserved
+  }
+  Serial.println("WAKEUP");
 }
