@@ -19,6 +19,7 @@ constexpr int RGB_PIN = 38;
 // Set this to the GPIO connected to the external alert LED. Set to -1 if unused.
 constexpr int WILDLIFE_LED_PIN = 2;
 constexpr unsigned long LED_HOLD_MS = 1000;
+constexpr unsigned long WILDLIFE_LATCH_TIMEOUT_MS = 90000;
 
 // SD wiring
 constexpr int SD_CARD_PIN_MOSI = 10;
@@ -29,6 +30,7 @@ constexpr int SD_CARD_PIN_MISO = 13;
 HardwareSerial LoRaSerial(1);
 String line;
 unsigned long led_off_at = 0;
+unsigned long wildlife_until = 0;
 bool sd_ready = false;
 
 // --- Frame reassembly state ---
@@ -174,7 +176,12 @@ void handleStatus(const String& sourceAddress, const String& payload) {
   if (payload.indexOf("wildlife=1") >= 0) {
     if (WILDLIFE_LED_PIN >= 0) digitalWrite(WILDLIFE_LED_PIN, HIGH);
     neopixelWrite(RGB_PIN, 40, 20, 0);
-    led_off_at = millis() + LED_HOLD_MS;
+    wildlife_until = millis() + WILDLIFE_LATCH_TIMEOUT_MS;
+    led_off_at = 0;
+  } else if (payload.indexOf("wildlife=0") >= 0) {
+    if (WILDLIFE_LED_PIN >= 0) digitalWrite(WILDLIFE_LED_PIN, LOW);
+    wildlife_until = 0;
+    neopixelWrite(RGB_PIN, 0, 0, 0);
   }
 }
 
@@ -291,8 +298,10 @@ void handleLoRaLine(String receivedLine) {
     if (frame.receivedChunks >= frame.totalChunks) {
       logFrame(srcAddr);
       frame.active = false;
-      neopixelWrite(RGB_PIN, 0, 40, 0); // green flash on complete frame
-      led_off_at = millis() + LED_HOLD_MS;
+      if (wildlife_until == 0) {
+        neopixelWrite(RGB_PIN, 0, 40, 0); // green flash only when no alert is latched
+        led_off_at = millis() + LED_HOLD_MS;
+      }
     }
 
   } else if (payload.startsWith("STATUS,")) {
@@ -304,8 +313,13 @@ void handleLoRaLine(String receivedLine) {
     Serial.println("[ALERT] Animal detection confirmed from " + srcAddr);
     const bool wildlife = payload.startsWith("WILDLIFE,1,");
     if (wildlife && WILDLIFE_LED_PIN >= 0) digitalWrite(WILDLIFE_LED_PIN, HIGH);
-    neopixelWrite(RGB_PIN, wildlife ? 40 : 0, wildlife ? 20 : 0, 0); // amber on detection alert
-    led_off_at = millis() + LED_HOLD_MS;
+    if (wildlife) {
+      neopixelWrite(RGB_PIN, 40, 20, 0);
+      wildlife_until = millis() + WILDLIFE_LATCH_TIMEOUT_MS;
+      led_off_at = 0;
+    } else {
+      neopixelWrite(RGB_PIN, 0, 0, 0);
+    }
 
   } else {
     // Unknown payload — log it anyway
@@ -351,8 +365,13 @@ void loop() {
 
   if (led_off_at != 0 && millis() > led_off_at) {
     neopixelWrite(RGB_PIN, 0, 0, 0);
-    if (WILDLIFE_LED_PIN >= 0) digitalWrite(WILDLIFE_LED_PIN, LOW);
     led_off_at = 0;
+  }
+  if (wildlife_until != 0 && (long)(millis() - wildlife_until) >= 0) {
+    if (WILDLIFE_LED_PIN >= 0) digitalWrite(WILDLIFE_LED_PIN, LOW);
+    neopixelWrite(RGB_PIN, 0, 0, 0);
+    led_off_at = 0;
+    wildlife_until = 0;
   }
 
   // No light sleep — receiver must stay awake to catch all UART bytes.
