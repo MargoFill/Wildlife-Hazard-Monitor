@@ -1,14 +1,6 @@
 # Development TODO
 
-## Sensor node
+make receiver write to sd
+Make receiver code power efficient
 
-- [ ] Remove or gate verbose boot/debug output for production builds.
-- [ ] Add configurable sensor-node numbering.
-- [x] Move SD-card logging to the receiver node and document its wiring/log format.
-
-## System validation
-
-- [ ] Test the complete sensor-to-receiver path with representative distances.
-- [ ] Measure battery life in sleep, capture, logging, and transmit states.
-- [ ] Evaluate the classifier on a larger, independently collected field dataset.
-- [ ] Validate enclosure weather resistance and thermal-sensor visibility.
+Add vizualizer script in tools 
