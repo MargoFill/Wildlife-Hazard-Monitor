@@ -28,10 +28,14 @@ constexpr int FRAME_CHUNK_PIXELS = 150;
 constexpr int FRAME_COUNT = 8;
 constexpr int REQUIRED_VOTES = 5;
 constexpr unsigned long PIR_CALIBRATION_MS = 10000;
+constexpr unsigned long WILDLIFE_HEARTBEAT_MS = 30000;
 
 Adafruit_MLX90640 mlx;
 HardwareSerial LoRaSerial(1);
 [[noreturn]] void enterDeepSleep();
+bool initializeLoRa();
+bool sendStatus(bool wildlife);
+bool fastAlertSent = false;
 
 String timestamp() {
   const time_t now = time(nullptr);
@@ -104,6 +108,12 @@ const float* detectAnimal() {
         // Keep capturing the remaining frames so the direct USB visualizer
         // receives the complete eight-frame sequence.
         memcpy(decidingFrame, frame, sizeof(decidingFrame));
+        // Send the compact alert immediately; remaining frames continue for
+        // the direct USB visualizer and improve the final frame selection.
+        if (!fastAlertSent) {
+          fastAlertSent = initializeLoRa() && sendStatus(true);
+          Serial.println(fastAlertSent ? "[FAST ALERT] sent" : "[FAST ALERT] failed");
+        }
       }
     }
 
@@ -207,6 +217,21 @@ bool sendStatus(bool wildlife) {
       + ",uptime_ms=" + String(millis()));
 }
 
+void monitorPirAndHeartbeat(bool wildlife) {
+  if (!wildlife) return; // the wake-cycle STATUS,wildlife=0 already cleared it
+
+  unsigned long nextHeartbeat = millis() + WILDLIFE_HEARTBEAT_MS;
+  Serial.println("[ALERT] PIR high; heartbeat monitoring started");
+  while (digitalRead(PIR_PIN) == HIGH) {
+    if ((long)(millis() - nextHeartbeat) >= 0) {
+      if (sendStatus(true)) Serial.println("[HEARTBEAT] wildlife alert refreshed");
+      nextHeartbeat = millis() + WILDLIFE_HEARTBEAT_MS;
+    }
+    delay(100);
+  }
+  if (sendStatus(false)) Serial.println("[CLEAR] PIR low; wildlife alert cleared");
+}
+
 [[noreturn]] void enterDeepSleep() {
   Serial.println("[SLEEP] Waiting for PIR to go LOW...");
   Serial.flush();
@@ -237,13 +262,15 @@ void setup() {
   if (wakeCause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("[WAKE] PIR motion detected");
     const float* decidingFrame = detectAnimal();
-    if (!initializeLoRa() || !sendStatus(decidingFrame != nullptr)) enterDeepSleep();
+    if (!fastAlertSent && !initializeLoRa()) enterDeepSleep();
+    if (!fastAlertSent && !sendStatus(decidingFrame != nullptr)) enterDeepSleep();
     if (decidingFrame) {
       delay(600); // give receiver RYLR module time to exit post-receive state
       sendFrame(decidingFrame); // transmit the frame that cast the deciding vote
     } else {
       Serial.println("[MODEL] No Animal finding");
     }
+    monitorPirAndHeartbeat(decidingFrame != nullptr);
   } else {
     Serial.println("[BOOT] PIR calibration");
     const unsigned long start = millis();
