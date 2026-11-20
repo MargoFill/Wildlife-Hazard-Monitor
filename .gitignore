@@ -22,3 +22,6 @@ Thumbs.db
 
 # kicad
 ki-cad footprints/
+
+# test codes
+firmware/lora/
