@@ -11,3 +11,16 @@ The receiver listens for RYLR890 `+RCV` lines, displays an alert on the onboard 
 - RGB LED: GPIO38
 
 Adjust the constants in `src/main.cpp` for a different board or wiring. The SD log records the receiver uptime, source LoRa address, and received payload. The receiver must be powered and have a mounted SD card for entries to be written.
+
+## Benchmark results
+
+For the same event measured on the receiver:
+
+| Metric | Result |
+| --- | ---: |
+| Status packet handling to LED assertion | 18 ms |
+| Frame reassembly after header reception | 4.584 s |
+
+The receiver prints these values as `[BENCH] status_received_ms=... led_set_ms=... processing_ms=...` and `[BENCH] frame_reassembly_ms=...`.
+
+The sensor and receiver have independent `millis()` clocks, so their timestamps cannot be directly subtracted for exact animal-to-LED latency. The software estimate from this event is approximately 491 ms for the sensor's local alert send transaction plus 18 ms receiver processing. A logic analyzer measuring a sensor detection GPIO against the receiver LED GPIO is required for an exact end-to-end value.
