@@ -8,9 +8,9 @@ The project combines an ESP32-S3 sensor node, an MLX90640 thermal camera, PIR mo
 
 ## Project overview
 
-The intended deployment is an off-grid sensor near a road, wildlife crossing, or other area where animals may approach traffic. The sensor remains in deep sleep until a PIR event occurs. It then captures low-resolution thermal frames, classifies the scene locally, and sends a compact alert over LoRa when the required wildlife vote threshold is met. A receiver node stays powered at a safer or more accessible location, raises an LED, and records the event for later inspection.
+The intended deployment is an off-grid sensor near a road, wildlife crossing, or other area where animals may approach traffic and be able to send alerts to the road via flashing light to warn drivers. The sensor remains in deep sleep until a PIR event occurs. It then captures low-resolution thermal frames, classifies the scene locally, and sends a compact alert over LoRa when the required wildlife vote threshold is met. A receiver node stays powered at a safer or more accessible location, raises an LED, and records the event for later inspection.
 
-This architecture avoids sending raw thermal images continuously. The sensor sends a small status message first for low-latency alerts, then sends a quantized thermal frame only when wildlife is detected. The receiver reconstructs the frame for visualization and logging.
+This architecture avoids sending raw thermal images continuously. For demonstration purposes, the sensor sends a small status message first for low-latency alerts, then sends a quantized thermal frame only when wildlife is detected. The receiver reconstructs the frame for visualization and logging.
 
 ## Functional requirements
 
