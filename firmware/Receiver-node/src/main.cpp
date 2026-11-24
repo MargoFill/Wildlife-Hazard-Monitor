@@ -118,9 +118,12 @@ static int base64Decode(const String& src, uint8_t* dst, int dstMax) {
 // Log the dequantised frame to SD as CSV rows and print a compact summary.
 // Format per row: receiver_ts,source,FRAME,<ts>,<pixel_index>,<temp_x10>
 void logFrame(const String& source) {
+  const unsigned long frameDone = millis();
   const float range = frame.t_max - frame.t_min;
   Serial.printf("[FRAME] Reassembled from %s | t_min=%.1f t_max=%.1f\n",
                 source.c_str(), frame.t_min, frame.t_max);
+  Serial.printf("[BENCH] frame_reassembly_ms=%lu chunks=%d\n",
+                frameDone - frame.startedAt, frame.totalChunks);
 
   // Print CSV-compatible flat pixel line for visualizer
   // Format: FRAME_PIXELS,<ts>,<768 comma-separated float temps>,<source>
@@ -171,10 +174,13 @@ void logReceivedPayload(const String& sourceAddress, const String& payload) {
 }
 
 void handleStatus(const String& sourceAddress, const String& payload) {
+  const unsigned long receivedAt = millis();
   logReceivedPayload(sourceAddress, payload);
   Serial.println("[STATUS] " + payload);
   if (payload.indexOf("wildlife=1") >= 0) {
     if (WILDLIFE_LED_PIN >= 0) digitalWrite(WILDLIFE_LED_PIN, HIGH);
+    Serial.printf("[BENCH] status_received_ms=%lu led_set_ms=%lu processing_ms=%lu\n",
+                  receivedAt, millis(), millis() - receivedAt);
     neopixelWrite(RGB_PIN, 40, 20, 0);
     wildlife_until = millis() + WILDLIFE_LATCH_TIMEOUT_MS;
     led_off_at = 0;

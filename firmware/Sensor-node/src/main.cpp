@@ -1,4 +1,12 @@
-﻿#include <Arduino.h>
+﻿/*
+  TODO:
+  Benchmark:
+  - inference speed
+  - transmission speed
+  - detection to light time.
+*/
+
+#include <Arduino.h>
 #include <math.h>
 #include <Wire.h>
 #include <Adafruit_MLX90640.h>
@@ -66,6 +74,7 @@ bool initializeThermalCamera(float* warmupFrame) {
 // Returns a pointer to the static deciding-vote frame on detection, nullptr otherwise.
 // The static buffers live inside this function (BSS), keeping them off the global namespace.
 const float* detectAnimal() {
+  const unsigned long decisionStart = millis();
   static float frame[768];         // rolling capture buffer — reused every call
   static float decidingFrame[768]; // snapshot of the frame that cast the deciding vote
 
@@ -99,7 +108,10 @@ const float* detectAnimal() {
     if (delta < 4.0f) {
       Serial.println("[MODEL] Skipped - Flat background temperature");
     } else {
+      const unsigned long inferenceStart = millis();
       raw_detection = predict_animal(frame);
+      Serial.printf("[BENCH] inference_ms=%lu frame=%d result=%d\n",
+                    millis() - inferenceStart, i + 1, raw_detection ? 1 : 0);
     }
 
     if (raw_detection) {
@@ -128,6 +140,8 @@ const float* detectAnimal() {
 
   Serial.printf("[MODEL] %d/%d Animal votes\n", votes, validFrames);
   const bool detected = (validFrames >= REQUIRED_VOTES) && (votes >= REQUIRED_VOTES);
+  Serial.printf("[BENCH] decision_ms=%lu wildlife=%d valid=%d votes=%d\n",
+                millis() - decisionStart, detected ? 1 : 0, validFrames, votes);
   return detected ? decidingFrame : nullptr;
 }
 
@@ -173,10 +187,14 @@ bool radioCommand(const String& command) {
 
 bool sendPacket(const String& payload) {
   if (payload.length() > 240) return false;
-  return radioCommand(String("AT+SEND=") + LORA_DESTINATION + "," + payload.length() + "," + payload);
+  const unsigned long started = millis();
+  const bool ok = radioCommand(String("AT+SEND=") + LORA_DESTINATION + "," + payload.length() + "," + payload);
+  Serial.printf("[BENCH] packet_tx_ms=%lu bytes=%u ok=%d\n", millis() - started, payload.length(), ok ? 1 : 0);
+  return ok;
 }
 
 void sendFrame(const float* f) {
+  const unsigned long frameStarted = millis();
   float lo = f[0], hi = f[0];
   for (int i = 0; i < 768; ++i) {
     if (!isfinite(f[i])) { Serial.println("[FRAME] Invalid temperature"); return; }
@@ -198,6 +216,7 @@ void sendFrame(const float* f) {
       Serial.println("[FRAME] Chunk send failed; aborted"); return;
     }
   }
+  Serial.printf("[BENCH] frame_tx_ms=%lu chunks=7\n", millis() - frameStarted);
   Serial.println("[FRAME] All packets accepted by local radio");
 }
 
